@@ -3,6 +3,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const AgentService = require('./src/services/agentService');
 const { MainMenu, CancelMenu, BuildConfirmMenu } = require('./src/bot/keyboards');
 const http = require('http');
+const https = require('https');
 
 // Health check server for Render
 const server = http.createServer((req, res) => {
@@ -24,6 +25,25 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`🌐 Health check server running on port ${PORT}`);
 });
+
+// Keep-alive mechanism to prevent Render from sleeping
+const RENDER_URL = process.env.RENDER_EXTERNAL_URL || `https://bingo-agent-bot.onrender.com`;
+
+function keepAlive() {
+  const url = `${RENDER_URL}/health`;
+  
+  https.get(url, (res) => {
+    console.log(`🔄 Keep-alive ping: ${res.statusCode} at ${new Date().toISOString()}`);
+  }).on('error', (err) => {
+    console.log(`⚠️ Keep-alive ping failed: ${err.message}`);
+  });
+}
+
+// Ping every 14 minutes (before 15-minute sleep timeout)
+if (process.env.NODE_ENV === 'production') {
+  setInterval(keepAlive, 14 * 60 * 1000); // 14 minutes
+  console.log('🔄 Keep-alive mechanism started (14-minute intervals)');
+}
 
 // Validate required environment variables
 if (!process.env.AGENT_BOT_TOKEN) {
@@ -469,5 +489,33 @@ function showTransactionsPage(chatId, agent, transactions, page = 0, messageId =
     });
   }
 }
+
+// Add process error handlers to prevent crashes
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  // Don't exit, try to continue running
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit, try to continue running
+});
+
+// Graceful shutdown handler
+process.on('SIGTERM', () => {
+  console.log('📴 Received SIGTERM, shutting down gracefully');
+  server.close(() => {
+    console.log('🔌 HTTP server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('📴 Received SIGINT, shutting down gracefully');
+  server.close(() => {
+    console.log('🔌 HTTP server closed');
+    process.exit(0);
+  });
+});
 
 console.log('🤖 Telegram Agent Bot is starting...');

@@ -1,0 +1,23 @@
+name: Keep Bot Alive
+
+on:
+  schedule:
+    # Run every 10 minutes
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Ping Bot
+      run: |
+        echo "Pinging bot at $(date)"
+        response=$(curl -s -o /dev/null -w "%{http_code}" https://bingo-agent-bot.onrender.com/health)
+        if [ $response -eq 200 ]; then
+          echo "✅ Bot is alive (HTTP $response)"
+        else
+          echo "❌ Bot ping failed (HTTP $response)"
+          exit 1
+        fi
