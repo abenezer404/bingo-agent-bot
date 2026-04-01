@@ -25,13 +25,19 @@ server.listen(PORT, () => {
   console.log(`🌐 Health check server running on port ${PORT}`);
 });
 
-// Initialize Bot
-const token = process.env.AGENT_BOT_TOKEN;
-if (!token) {
-  console.error("AGENT_BOT_TOKEN is missing in .env");
+// Validate required environment variables
+if (!process.env.AGENT_BOT_TOKEN) {
+  console.error("❌ AGENT_BOT_TOKEN is missing in environment variables");
   process.exit(1);
 }
 
+if (!process.env.DATABASE_URL) {
+  console.error("❌ DATABASE_URL is missing in environment variables");
+  process.exit(1);
+}
+
+// Initialize Bot
+const token = process.env.AGENT_BOT_TOKEN;
 const bot = new TelegramBot(token, { polling: true });
 console.log(`🤖 Initializing Bot with token prefix: ${token.substring(0, 5)}...`);
 
