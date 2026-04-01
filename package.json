@@ -1,0 +1,28 @@
+{
+  "name": "bingo-agent-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "bingo",
+    "agent"
+  ],
+  "author": "ABENEZER ANDUALEM",
+  "license": "ISC",
+  "description": "Telegram bot for KELALBINGO agents to manage user funding and transactions",
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "node-telegram-bot-api": "^0.67.0",
+    "pg": "^8.20.0",
+    "sqlite3": "^6.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
