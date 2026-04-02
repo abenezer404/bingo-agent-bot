@@ -26,8 +26,25 @@ const server = http.createServer((req, res) => {
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      env: process.env.NODE_ENV || 'development'
+      env: process.env.NODE_ENV || 'development',
+      polling: bot._polling ? 'active' : 'inactive'
     }));
+  } else if (req.url === '/webhook' && req.method === 'POST') {
+    // Webhook endpoint for Telegram (future use)
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const update = JSON.parse(body);
+        bot.processUpdate(update);
+        res.writeHead(200);
+        res.end('OK');
+      } catch (error) {
+        console.error('Webhook error:', error);
+        res.writeHead(400);
+        res.end('Bad Request');
+      }
+    });
   } else {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not Found');
@@ -79,8 +96,43 @@ if (!process.env.DATABASE_URL) {
 
 // Initialize Bot
 const token = process.env.AGENT_BOT_TOKEN;
-const bot = new TelegramBot(token, { polling: true });
+// Initialize Bot with error handling
+const bot = new TelegramBot(token, { 
+  polling: {
+    interval: 1000,
+    autoStart: true,
+    params: {
+      timeout: 10
+    }
+  }
+});
+
 console.log(`🤖 Initializing Bot with token prefix: ${token.substring(0, 5)}...`);
+
+// Handle polling errors (multiple instances)
+bot.on('polling_error', (error) => {
+  console.error('❌ Polling error:', error.message);
+  
+  if (error.message.includes('409 Conflict')) {
+    console.log('⚠️ Multiple bot instances detected. This instance will retry in 30 seconds...');
+    
+    // Stop polling temporarily
+    bot.stopPolling();
+    
+    // Retry after 30 seconds
+    setTimeout(() => {
+      console.log('🔄 Retrying bot connection...');
+      bot.startPolling();
+    }, 30000);
+  }
+});
+
+// Handle successful connection
+bot.on('message', (msg) => {
+  if (!bot._polling) {
+    console.log('✅ Bot polling restored successfully');
+  }
+});
 
 // Basic state management for conversational UI
 const userStates = new Map();
