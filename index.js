@@ -7,13 +7,26 @@ const https = require('https');
 
 // Health check server for Render
 const server = http.createServer((req, res) => {
+  // Enable CORS for health checks
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200);
+    res.end();
+    return;
+  }
+
   if (req.url === '/health' || req.url === '/') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ 
       status: 'healthy', 
       service: 'bingo-agent-bot',
       timestamp: new Date().toISOString(),
-      uptime: process.uptime()
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      env: process.env.NODE_ENV || 'development'
     }));
   } else {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
@@ -21,15 +34,20 @@ const server = http.createServer((req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🌐 Health check server running on port ${PORT}`);
 });
 
 // Keep-alive mechanism to prevent Render from sleeping
-const RENDER_URL = process.env.RENDER_EXTERNAL_URL || `https://bingo-agent-bot.onrender.com`;
+const RENDER_URL = process.env.RENDER_EXTERNAL_URL;
 
 function keepAlive() {
+  if (!RENDER_URL) {
+    console.log('⚠️ RENDER_EXTERNAL_URL not set, skipping keep-alive ping');
+    return;
+  }
+
   const url = `${RENDER_URL}/health`;
   
   https.get(url, (res) => {
@@ -40,9 +58,12 @@ function keepAlive() {
 }
 
 // Ping every 14 minutes (before 15-minute sleep timeout)
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === 'production' && RENDER_URL) {
   setInterval(keepAlive, 14 * 60 * 1000); // 14 minutes
   console.log('🔄 Keep-alive mechanism started (14-minute intervals)');
+  console.log(`🔗 Keep-alive URL: ${RENDER_URL}/health`);
+} else {
+  console.log('ℹ️ Keep-alive disabled (development mode or missing RENDER_EXTERNAL_URL)');
 }
 
 // Validate required environment variables
@@ -504,10 +525,19 @@ process.on('unhandledRejection', (reason, promise) => {
 // Graceful shutdown handler
 process.on('SIGTERM', () => {
   console.log('📴 Received SIGTERM, shutting down gracefully');
-  server.close(() => {
-    console.log('🔌 HTTP server closed');
-    process.exit(0);
+  console.log('📊 Process info:', {
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    pid: process.pid
   });
+  
+  // Give the bot time to finish current operations
+  setTimeout(() => {
+    server.close(() => {
+      console.log('🔌 HTTP server closed');
+      process.exit(0);
+    });
+  }, 1000);
 });
 
 process.on('SIGINT', () => {
@@ -516,6 +546,16 @@ process.on('SIGINT', () => {
     console.log('🔌 HTTP server closed');
     process.exit(0);
   });
+});
+
+// Add error handling for server
+server.on('error', (err) => {
+  console.error('❌ HTTP server error:', err);
+});
+
+// Log when server is ready
+server.on('listening', () => {
+  console.log('✅ Health check server is ready to accept connections');
 });
 
 console.log('🤖 Telegram Agent Bot is starting...');
