@@ -75,13 +75,14 @@ function keepAlive() {
 }
 
 // Ping every 14 minutes (before 15-minute sleep timeout)
-if (process.env.NODE_ENV === 'production' && RENDER_URL) {
-  setInterval(keepAlive, 14 * 60 * 1000); // 14 minutes
-  console.log('🔄 Keep-alive mechanism started (14-minute intervals)');
-  console.log(`🔗 Keep-alive URL: ${RENDER_URL}/health`);
-} else {
-  console.log('ℹ️ Keep-alive disabled (development mode or missing RENDER_EXTERNAL_URL)');
-}
+// DISABLED: Keep-alive mechanism to save monthly hours
+// if (process.env.NODE_ENV === 'production' && RENDER_URL) {
+//   setInterval(keepAlive, 14 * 60 * 1000); // 14 minutes
+//   console.log('🔄 Keep-alive mechanism started (14-minute intervals)');
+//   console.log(`🔗 Keep-alive URL: ${RENDER_URL}/health`);
+// } else {
+  console.log('ℹ️ Keep-alive disabled to save monthly hours');
+// }
 
 // Validate required environment variables
 if (!process.env.AGENT_BOT_TOKEN) {
